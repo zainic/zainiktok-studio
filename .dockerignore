@@ -1,0 +1,11 @@
+# Never include local credentials, uploaded videos, or databases in deploy images.
+.env
+.env.*
+!.env.example
+node_modules/
+data/
+uploads/
+.git/
+.gitignore
+*.log
+.DS_Store

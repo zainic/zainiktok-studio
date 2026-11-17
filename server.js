@@ -17,7 +17,7 @@ if(existsSync(envFile)) for(const line of readFileSync(envFile,'utf8').split(/\r
   if(match && process.env[match[1]]===undefined) process.env[match[1]]=match[2].replace(/^['"]|['"]$/g,'');
 }
 const cfg={
-  port:Number(process.env.PORT||3000),host:process.env.HOST||'127.0.0.1',
+  port:Number(process.env.PORT||3000),host:process.env.HOST||(process.env.RAILWAY_PROJECT_ID?'0.0.0.0':'127.0.0.1'),
   password:process.env.APP_PASSWORD||'',
   key:process.env.TOKEN_ENCRYPTION_KEY||'',
   clientKey:process.env.TIKTOK_CLIENT_KEY||'',clientSecret:process.env.TIKTOK_CLIENT_SECRET||'',
@@ -30,7 +30,20 @@ const cfg={
 if(!cfg.password||cfg.password==='REPLACE_WITH_LONG_RANDOM_PASSWORD'||cfg.password.length<12) {
   console.error('Set APP_PASSWORD in .env (at least 12 characters) before starting.'); process.exit(1);
 }
-const DATA=path.join(DIR,'data'), UPLOADS=path.join(DIR,'uploads'),PUBLIC=path.join(DIR,'public');
+// Keep SQLite (including its WAL files) and uploaded videos on the same persistent volume.
+// On Railway, the volume mount path is supplied automatically at runtime.
+// Local development still defaults to the project folder for backward compatibility.
+if (process.env.RAILWAY_PROJECT_ID && !process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+  console.error('Railway volume missing. Attach a persistent volume (mount path /data) before starting, or scheduled posts and videos will be lost.');
+  process.exit(1);
+}
+const STORAGE_ROOT=path.resolve(process.env.STORAGE_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || DIR);
+if (process.env.RAILWAY_PROJECT_ID && process.env.STORAGE_DIR &&
+    path.resolve(process.env.STORAGE_DIR) !== path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH)) {
+  console.error('STORAGE_DIR must match RAILWAY_VOLUME_MOUNT_PATH on Railway to ensure persistent storage.');
+  process.exit(1);
+}
+const DATA=path.join(STORAGE_ROOT,'data'), UPLOADS=path.join(STORAGE_ROOT,'uploads'), PUBLIC=path.join(DIR,'public');
 mkdirSync(DATA,{recursive:true});mkdirSync(UPLOADS,{recursive:true});
 const store=createStore(DATA), crypto=tokenCrypto(cfg.key), tiktok=createTikTok({store,crypto,clientKey:cfg.clientKey,clientSecret:cfg.clientSecret,mock:cfg.mock});
 // If the process died mid-transfer, don't blindly re-upload and risk duplicate posts.
