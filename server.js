@@ -140,6 +140,8 @@ async function handler(req,res){
   // Add no-store and clickjacking mitigation on every endpoint.
   res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','no-referrer');
   if(p==='/api/health')return send(res,200,{status:'ok',service:'Zainiktok Studio'});
+  if((p==='/terms'||p==='/terms.html') && req.method==='GET')return serve(res,path.join(PUBLIC,'terms.html'));
+  if((p==='/privacy'||p==='/privacy.html') && req.method==='GET')return serve(res,path.join(PUBLIC,'privacy.html'));
   if(p==='/login' && req.method==='GET')return serve(res,path.join(PUBLIC,'login.html'));
   if(p==='/login.js' && req.method==='GET')return serve(res,path.join(PUBLIC,'login.js'));
   if(p==='/api/login' && req.method==='POST'){
